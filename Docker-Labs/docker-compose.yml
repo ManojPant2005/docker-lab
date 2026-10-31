@@ -1,0 +1,34 @@
+services:
+  # Service 1: SQL Server Database
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: sqlserver_db
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "YourStrong@Pass123" # Change this
+      MSSQL_PID: "Developer"
+    ports:
+      - "1433:1433" # You can connect from SSMS on localhost,1433
+    volumes:
+      - sqlserver_data:/var/opt/mssql # Data stays safe even if container deleted
+    restart: unless-stopped
+
+  # Service 2: Your Dotnet API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: dotnet_api
+    ports:
+      - "5000:80"   # http://localhost:5000 -> API
+      - "5001:443"
+    depends_on:
+      - db # API will start AFTER db
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:80
+      - ConnectionStrings__DefaultConnection=Server=db;Database=MyAppDb;User Id=sa;Password=YourStrong@Pass123;TrustServerCertificate=True;
+    restart: unless-stopped
+
+volumes:
+  sqlserver_data:
