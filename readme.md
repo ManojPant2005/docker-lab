@@ -1,37 +1,33 @@
+# Dotnet Web API + SQL Server with Docker
+
+Run a .NET 8 Web API and SQL Server 2022 together using Docker. No need to install SQL Server locally.
+
+## Prerequisites
+- Docker Desktop (Engine Running)
+- .NET 8 SDK (only for local development, not needed inside Docker)
+
+## Project Structure
+
 MyDotnetApp/
-├── MyApi/                  -> dotnet web api project
-│   ├── Program.cs
-│   ├── appsettings.json
-│   └── MyApi.csproj
-├── Dockerfile              -> How to build API image
-├── docker-compose.yml      -> How to run API + SQL Server together
-├── .dockerignore
+├── MyApi/                  # Your .NET Web API project
+│   ├── Program.cs          # App entry point
+│   ├── appsettings.json    # Config (ConnectionStrings)
+│   └── MyApi.csproj        # Project definition -> MUST be net8.0
+├── Dockerfile              # Recipe to build API image (multi-stage)
+├── docker-compose.yml      # Recipe to run API + SQL Server together
+├── .dockerignore           # Files to ignore while building
 └── README.md
 
-# Build both images and start both containers
-docker-compose up --build
+### What each Docker file does
 
-# Now check:
-# API: http://localhost:5000/swagger
-# SQL: You can connect in SSMS with localhost,1433 / sa / YourStrong@Pass123
+**1. Dockerfile (How to build ONE image)**
+```dockerfile
+# Stage 1: Build with SDK (big image, has compiler)
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+COPY MyApi/*.csproj -> restore
+COPY . . -> publish
 
-# See logs live
-docker-compose logs -f
-docker-compose logs -f api
-docker-compose logs -f db
-
-# Stop (pause, data safe in sqlserver_data volume)
-docker-compose stop
-
-# Start again (fast, no build)
-docker-compose start
-
-# Restart (when you change code)
-docker-compose restart
-docker-compose restart api
-
-# Full shutdown (deletes containers, but data volume stays safe)
-docker-compose down
-
-# Full delete including data (DANGEROUS - deletes your DB)
-docker-compose down -v
+# Stage 2: Run with ASP.NET Runtime (small image, only runtime)
+FROM mcr.microsoft.com/dotnet/aspnet:8.0
+COPY --from=build /app/publish .
+ENTRYPOINT ["dotnet", "MyApi.dll"]
